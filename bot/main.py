@@ -1,6 +1,7 @@
 import discord
 import requests
 import logging
+import os
 
 # === Configuration des logs ===
 logger = logging.getLogger(__name__)
@@ -11,8 +12,14 @@ console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
 
 # === Configuration du bot et de Rasa ===
-DISCORD_TOKEN = "MTM1NDAwNzcxNDI5NjEwNzA3OA.GmagkO.WNNH_9zGb0opWBctjU9xchxTOEQnUkU2l8rjyE"  # Remplacez par votre token Discord
-RASA_URL = "http://localhost:5005/webhooks/rest/webhook"
+# Récupérer les variables d'environnement
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+RASA_URL = os.getenv("RASA_URL", "http://localhost:5005/webhooks/rest/webhook")
+
+# Vérifier que le token Discord est défini
+if not DISCORD_TOKEN:
+    logger.error("Le token Discord n'est pas défini dans les variables d'environnement!")
+    exit(1)
 
 # Activez les intents, y compris le message_content
 intents = discord.Intents.default()

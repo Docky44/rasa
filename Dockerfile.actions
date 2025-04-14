@@ -1,0 +1,18 @@
+FROM python:3.8-slim
+
+WORKDIR /app
+
+# Copier les fichiers de dépendances
+COPY requirements.txt .
+
+# Installer les dépendances
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copier les actions personnalisées
+COPY actions/ /app/actions/
+
+# Exposer le port utilisé par le serveur d'actions
+EXPOSE 5055
+
+# Démarrer le serveur d'actions
+CMD rasa run actions

@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  rasa:
+    build:
+      context: .
+      dockerfile: Dockerfile.rasa
+    ports:
+      - "5005:5005"
+    depends_on:
+      - rasa-actions
+    volumes:
+      - ./models:/app/models
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: always
+    command: >
+      sh -c "rasa train && rasa run --enable-api --cors \"*\" --debug"
+
+  rasa-actions:
+    build:
+      context: .
+      dockerfile: Dockerfile.actions
+    ports:
+      - "5055:5055"
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: always
+
+  discord-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile.discord
+    depends_on:
+      - rasa
+    environment:
+      - PYTHONUNBUFFERED=1
+      - RASA_URL=http://rasa:5005/webhooks/rest/webhook
+    restart: always

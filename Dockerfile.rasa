@@ -1,0 +1,23 @@
+FROM python:3.8-slim
+
+WORKDIR /app
+
+# Copier les fichiers de configuration et de dépendances
+COPY requirements.txt .
+COPY config.yml .
+COPY credentials.yml .
+COPY domain.yml .
+COPY endpoints.yml .
+
+# Installer les dépendances
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copier le reste des fichiers
+COPY data/ /app/data/
+COPY tests/ /app/tests/
+
+# Exposer les ports utilisés par Rasa
+EXPOSE 5005
+
+# Entraîner le modèle Rasa au démarrage et lancer le serveur
+CMD rasa train && rasa run --enable-api --cors "*" --debug
