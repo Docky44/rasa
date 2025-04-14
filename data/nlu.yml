@@ -1,0 +1,39 @@
+version: "3.1"
+
+nlu:
+- intent: greet
+  examples: |
+    - Bonjour
+    - Salut
+    - Coucou
+    - Hello
+    - Bon matin
+    - Bonsoir
+
+- intent: reserve_table
+  examples: |
+    - Je voudrais réserver une table
+    - Réserver une table s'il vous plaît
+    - J'aimerais faire une réservation
+    - J'ai besoin d'une table pour ce soir
+    - Peux-tu réserver une table ?
+    - Réserve-moi une table
+    - Je veux réserver une table
+
+- intent: inform
+  examples: |
+    - Pour le [25/03/2025](date) pour [10](number_of_people) personnes au nom de [PIERRE](name). Vous pouvez me joindre au [0782523382](phone).
+    - Le [25/03/2025](date), [10](number_of_people) personnes, c'est [PIERRE](name), téléphone [0782523382](phone).
+    - Je réserve pour le [25 mars 2025](date) pour [10](number_of_people) personnes, [PIERRE](name), numéro [0782523382](phone).
+    - Réservation le [25/03/2025](date) pour [10](number_of_people) personnes, nom [PIERRE](name), téléphone [0782523382](phone).
+
+- intent: cancel_reservation
+  examples: |
+    - Annuler ma réservation
+    - Je souhaite annuler ma réservation
+    - J'aimerais annuler ma table
+    - Annule ma réservation s'il te plaît
+    - Je veux annuler la réservation
+    - Annulation de ma réservation
+    - Supprime ma réservation
+    - Peux-tu annuler ma réservation ?

@@ -1,0 +1,52 @@
+version: "3.1"
+
+intents:
+  - greet
+  - reserve_table
+  - cancel_reservation
+  - inform
+
+entities:
+  - date
+  - number_of_people
+  - name
+  - phone
+
+slots:
+  date:
+    type: text
+    influence_conversation: false
+    mappings: []
+  number_of_people:
+    type: text
+    influence_conversation: false
+    mappings: []
+  name:
+    type: text
+    influence_conversation: false
+    mappings: []
+  phone:
+    type: text
+    influence_conversation: false
+    mappings: []
+  reservation_number:
+    type: text
+    influence_conversation: false
+    mappings: []
+
+responses:
+  utter_greet:
+    - text: "Bonjour ! Comment puis-je vous aider aujourd'hui ?"
+  utter_ask_reservation_details:
+    - text: "Pour réserver une table, merci de me fournir la date, le nombre de personnes, votre nom et votre numéro de téléphone."
+  utter_confirm_reservation:
+    - text: "Votre réservation a bien été prise en compte. Votre numéro de réservation est {reservation_number}."
+  utter_cancel_confirmation:
+    - text: "Votre réservation a été annulée."
+  utter_default:
+    - text: "Je n'ai pas compris. Pouvez-vous reformuler ou préciser votre demande ?"
+
+actions:
+  - action_reserve_table
+  - action_cancel_reservation
+  - action_default_fallback
