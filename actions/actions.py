@@ -5,6 +5,9 @@ from typing import Any, Text, Dict, List
 from rasa_sdk import Action, Tracker
 from rasa_sdk.executor import CollectingDispatcher
 
+# Import des utilitaires pour la base de données
+from .db_utils import create_reservation, cancel_reservation, get_reservation_details
+
 # Configuration du logger
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -18,15 +21,15 @@ class ActionReserveTable(Action):
             domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
 
         logger.debug("=== Début de l'action action_reserve_table ===")
-        
+
         # Récupération du message reçu
         message = tracker.latest_message.get("text", "")
         logger.debug("Message reçu: %s", message)
-        
+
         # Affichage des entités extraites par le NLU
         entities = tracker.latest_message.get("entities", [])
         logger.debug("Entités extraites par le NLU: %s", entities)
-        
+
         # Récupération des slots initialement extraits par le NLU
         date = tracker.get_slot("date")
         number_of_people = tracker.get_slot("number_of_people")
@@ -50,7 +53,7 @@ class ActionReserveTable(Action):
                     logger.debug("Date extraite (texte): %s", date)
                 else:
                     logger.debug("Aucune date extraite par regex")
-        
+
         # Extraction du nombre de personnes
         if not number_of_people:
             num_match = re.search(r"(\d+)\s*(?:personnes|pers\.?)", message, re.IGNORECASE)
@@ -59,7 +62,7 @@ class ActionReserveTable(Action):
                 logger.debug("Nombre de personnes extrait: %s", number_of_people)
             else:
                 logger.debug("Aucun nombre de personnes extrait par regex")
-        
+
         # Extraction du nom
         if not name:
             name_match = re.search(r"(?:au\s+nom(?:\s*de)?|nom(?:\s*de)?)\s*([A-ZÉÈÀÙ]{2,})", message, re.IGNORECASE)
@@ -67,13 +70,13 @@ class ActionReserveTable(Action):
                 name = name_match.group(1).upper()
                 logger.debug("Nom extrait (méthode 1): %s", name)
             else:
-                name_match = re.search(r"(?:c(?:'|’)?est)\s*([A-ZÉÈÀÙ]{2,})", message, re.IGNORECASE)
+                name_match = re.search(r"(?:c(?:'|')?est)\s*([A-ZÉÈÀÙ]{2,})", message, re.IGNORECASE)
                 if name_match:
                     name = name_match.group(1).upper()
                     logger.debug("Nom extrait (méthode 2): %s", name)
                 else:
                     logger.debug("Aucun nom extrait par regex")
-        
+
         # Extraction du numéro de téléphone
         if not phone:
             phone_match = re.search(r"(0\d{9})", message)
@@ -82,18 +85,36 @@ class ActionReserveTable(Action):
                 logger.debug("Numéro de téléphone extrait: %s", phone)
             else:
                 logger.debug("Aucun numéro de téléphone extrait par regex")
-        
+
         logger.debug("Slots après extraction: date=%s, number_of_people=%s, name=%s, phone=%s",
                      date, number_of_people, name, phone)
-        
+
         # Si toutes les informations sont présentes, envoyer la confirmation directement
         if date and number_of_people and name and phone:
-            reservation_number = random.randint(1000, 9999)
-            logger.info("Réservation réussie, numéro: %s", reservation_number)
-            dispatcher.utter_message(
-                text=f"Réservation confirmée. Votre numéro de réservation est {reservation_number}."
+            # Génération d'un numéro de réservation unique
+            reservation_number = str(random.randint(1000, 9999))
+
+            # Enregistrement dans la base de données
+            success = create_reservation(
+                reservation_number=reservation_number,
+                name=name,
+                phone=phone,
+                date=date,
+                number_of_people=number_of_people
             )
-            return [{"slot": "reservation_number", "value": str(reservation_number)}]
+
+            if success:
+                logger.info("Réservation réussie, numéro: %s", reservation_number)
+                dispatcher.utter_message(
+                    text=f"Réservation confirmée au nom de {name}. Votre numéro de réservation est {reservation_number}."
+                )
+                return [{"slot": "reservation_number", "value": reservation_number}]
+            else:
+                logger.error("Échec de l'enregistrement dans la base de données")
+                dispatcher.utter_message(
+                    text="Désolé, nous avons rencontré un problème lors de l'enregistrement de votre réservation. Veuillez réessayer."
+                )
+                return []
         else:
             missing = []
             if not date:
@@ -117,9 +138,49 @@ class ActionCancelReservation(Action):
     def run(self, dispatcher: CollectingDispatcher,
             tracker: Tracker,
             domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
-        logger.info("Annulation de réservation demandée")
-        dispatcher.utter_message(text="Votre réservation a été annulée.")
-        return []
+
+        logger.debug("=== Début de l'action action_cancel_reservation ===")
+
+        # Récupération des slots
+        reservation_number = tracker.get_slot("reservation_number")
+        name = tracker.get_slot("name")
+        phone = tracker.get_slot("phone")
+
+        logger.debug("Slots pour annulation: reservation_number=%s, name=%s, phone=%s",
+                     reservation_number, name, phone)
+
+        # Si le numéro de réservation est disponible, l'utiliser en priorité
+        if reservation_number:
+            success = cancel_reservation(reservation_number=reservation_number)
+            if success:
+                dispatcher.utter_message(text=f"Votre réservation numéro {reservation_number} a été annulée.")
+                return [{"slot": "reservation_number", "value": None}]
+            else:
+                dispatcher.utter_message(text=f"Désolé, je n'ai pas trouvé de réservation active avec le numéro {reservation_number}.")
+                return []
+
+        # Sinon, essayer avec le nom puis le téléphone
+        elif name:
+            success = cancel_reservation(name=name)
+            if success:
+                dispatcher.utter_message(text=f"Votre réservation au nom de {name} a été annulée.")
+                return []
+            else:
+                dispatcher.utter_message(text=f"Désolé, je n'ai pas trouvé de réservation active au nom de {name}.")
+                return []
+
+        elif phone:
+            success = cancel_reservation(phone=phone)
+            if success:
+                dispatcher.utter_message(text=f"Votre réservation associée au numéro de téléphone {phone} a été annulée.")
+                return []
+            else:
+                dispatcher.utter_message(text=f"Désolé, je n'ai pas trouvé de réservation active associée au numéro {phone}.")
+                return []
+
+        else:
+            dispatcher.utter_message(text="Pour annuler une réservation, j'ai besoin soit du numéro de réservation, soit de votre nom, soit de votre numéro de téléphone.")
+            return []
 
 class ActionDefaultFallback(Action):
     def name(self) -> Text:
@@ -131,3 +192,59 @@ class ActionDefaultFallback(Action):
         logger.info("Fallback déclenché")
         dispatcher.utter_message(text="Je n'ai pas compris. Pouvez-vous reformuler ou préciser votre demande ?")
         return []
+
+class ActionCheckReservation(Action):
+    def name(self) -> Text:
+        return "action_check_reservation"
+
+    def run(self, dispatcher: CollectingDispatcher,
+            tracker: Tracker,
+            domain: Dict[Text, Any]) -> List[Dict[Text, Any]]:
+
+        logger.debug("=== Début de l'action action_check_reservation ===")
+
+        # Récupération des slots
+        reservation_number = tracker.get_slot("reservation_number")
+        name = tracker.get_slot("name")
+        phone = tracker.get_slot("phone")
+
+        logger.debug("Slots pour vérification: reservation_number=%s, name=%s, phone=%s",
+                     reservation_number, name, phone)
+
+        # Recherche de la réservation
+        reservation = None
+        if reservation_number:
+            reservation = get_reservation_details(reservation_number=reservation_number)
+        elif name:
+            reservation = get_reservation_details(name=name)
+        elif phone:
+            reservation = get_reservation_details(phone=phone)
+
+        if reservation:
+            # Formatage de la date pour l'affichage
+            date_formatted = reservation["date"].strftime("%d/%m/%Y à %H:%M")
+
+            if reservation["status"] == "confirmed":
+                dispatcher.utter_message(
+                    text=f"J'ai trouvé votre réservation : \n"
+                         f"- Numéro : {reservation['reservation_number']}\n"
+                         f"- Nom : {reservation['name']}\n"
+                         f"- Date : {date_formatted}\n"
+                         f"- Nombre de personnes : {reservation['number_of_people']}\n"
+                         f"- Statut : Confirmée"
+                )
+            else:
+                dispatcher.utter_message(
+                    text=f"J'ai trouvé votre réservation, mais elle a été annulée.\n"
+                         f"- Numéro : {reservation['reservation_number']}\n"
+                         f"- Nom : {reservation['name']}\n"
+                         f"- Date : {date_formatted}"
+                )
+
+            return [{"slot": "reservation_number", "value": reservation["reservation_number"]}]
+        else:
+            search_term = reservation_number or name or phone or "les informations fournies"
+            dispatcher.utter_message(
+                text=f"Je n'ai pas trouvé de réservation correspondant à {search_term}."
+            )
+            return []

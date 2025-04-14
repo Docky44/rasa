@@ -1,6 +1,26 @@
 version: '3.8'
 
 services:
+  # Base de données PostgreSQL
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: rasa
+      POSTGRES_PASSWORD: rasa
+      POSTGRES_DB: reservation
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rasa"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Serveur principal Rasa
   rasa:
     build:
       context: .
@@ -8,25 +28,43 @@ services:
     ports:
       - "5005:5005"
     depends_on:
-      - rasa-actions
+      rasa-actions:
+        condition: service_started
+      postgres:
+        condition: service_healthy
     volumes:
       - ./models:/app/models
     environment:
       - PYTHONUNBUFFERED=1
+      - DB_HOST=postgres
+      - DB_USER=rasa
+      - DB_PASSWORD=rasa
+      - DB_NAME=reservation
+      - DB_PORT=5432
     restart: always
     command: >
       sh -c "rasa train && rasa run --enable-api --cors \"*\" --debug"
 
+  # Serveur d'actions Rasa
   rasa-actions:
     build:
       context: .
       dockerfile: Dockerfile.actions
     ports:
       - "5055:5055"
+    depends_on:
+      postgres:
+        condition: service_healthy
     environment:
       - PYTHONUNBUFFERED=1
+      - DB_HOST=postgres
+      - DB_USER=rasa
+      - DB_PASSWORD=rasa
+      - DB_NAME=reservation
+      - DB_PORT=5432
     restart: always
 
+  # Bot Discord
   discord-bot:
     build:
       context: .
@@ -36,4 +74,8 @@ services:
     environment:
       - PYTHONUNBUFFERED=1
       - RASA_URL=http://rasa:5005/webhooks/rest/webhook
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
     restart: always
+
+volumes:
+  postgres_data:

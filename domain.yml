@@ -5,6 +5,7 @@ intents:
   - reserve_table
   - cancel_reservation
   - inform
+  - check_reservation
 
 entities:
   - date
