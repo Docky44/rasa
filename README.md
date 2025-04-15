@@ -1,92 +1,48 @@
-# Déploiement du Bot de Réservation avec Docker
+# Configuration des variables d'environnement
 
-Ce guide vous aide à déployer facilement votre bot de réservation RASA avec Docker et Docker Compose.
+Le projet utilise maintenant des variables d'environnement pour configurer les ports et d'autres paramètres sensibles. Cela rend le déploiement plus flexible.
 
-## Prérequis
+## Variables disponibles
 
-- [Docker](https://docs.docker.com/get-docker/)
-- [Docker Compose](https://docs.docker.com/compose/install/)
+Voici les variables d'environnement configurables dans le fichier `.env` :
 
-## Structure des fichiers
+| Variable | Description | Valeur par défaut |
+|----------|-------------|------------------|
+| `DISCORD_TOKEN` | Token d'authentification pour le bot Discord | (Aucune - **Obligatoire**) |
+| `DB_PORT` | Port externe pour la base de données PostgreSQL | 5432 |
+| `RASA_PORT` | Port externe pour le serveur Rasa | 5005 |
+| `ACTIONS_PORT` | Port externe pour le serveur d'actions Rasa | 5055 |
 
-Assurez-vous que votre structure de fichiers ressemble à ceci :
+## Comment utiliser les variables d'environnement
 
-```
-votre_projet/
-├── actions/
-│   ├── __init__.py
-│   └── actions.py
-├── bot/
-│   └── main.py
-├── data/
-│   ├── nlu.yml
-│   ├── rules.yml
-│   └── stories.yml
-├── models/
-├── tests/
-├── .env
-├── config.yml
-├── credentials.yml
-├── domain.yml
-├── endpoints.yml
-├── Dockerfile.rasa
-├── Dockerfile.actions
-├── Dockerfile.discord
-├── docker-compose.yml
-└── requirements.txt
+Vous pouvez configurer ces variables de deux façons :
+
+### 1. Via le fichier .env
+
+Créez ou modifiez le fichier `.env` à la racine du projet :
+
+```ini
+# Exemple de fichier .env
+DISCORD_TOKEN=votre_token_discord_ici
+DB_PORT=5433  # Changé de 5432 à 5433
+RASA_PORT=5006  # Changé de 5005 à 5006
+ACTIONS_PORT=5055  # Valeur par défaut
 ```
 
-## Configuration
+### 2. Via la ligne de commande
 
-1. Renommez les fichiers Dockerfile :
-   ```bash
-   mv Dockerfile-rasa Dockerfile.rasa
-   mv Dockerfile-actions Dockerfile.actions
-   mv Dockerfile-discord Dockerfile.discord
-   ```
+Vous pouvez aussi définir ces variables directement lorsque vous lancez docker-compose :
 
-2. Modifiez le fichier `.env` pour définir votre token Discord :
-   ```
-   DISCORD_TOKEN=votre_token_discord_ici
-   ```
+```bash
+DB_PORT=5433 RASA_PORT=5006 docker-compose up -d
+```
 
-3. Assurez-vous que le fichier `endpoints.yml` pointe vers le bon service d'actions :
-   ```yaml
-   action_endpoint:
-     url: "http://rasa-actions:5055/webhook"
-   ```
+## Vérification des ports
 
-## Déploiement
+Pour vérifier quels ports sont utilisés, exécutez :
 
-1. Construire les images Docker :
-   ```bash
-   docker-compose build
-   ```
+```bash
+docker-compose ps
+```
 
-2. Démarrer les services :
-   ```bash
-   docker-compose up -d
-   ```
-
-3. Vérifier que tout fonctionne correctement :
-   ```bash
-   docker-compose logs -f
-   ```
-
-## Remarques importantes
-
-- Le modèle RASA sera entraîné à chaque démarrage du conteneur Rasa.
-- Les logs sont accessibles via la commande `docker-compose logs`.
-- Pour arrêter tous les services : `docker-compose down`.
-- Pour mettre à jour le bot après des modifications : `docker-compose build && docker-compose up -d`.
-
-## Dépannage
-
-Si le bot Discord ne peut pas se connecter à Rasa :
-1. Vérifiez les logs des conteneurs : `docker-compose logs rasa discord-bot`
-2. Assurez-vous que Rasa est complètement démarré avant de tenter de s'y connecter
-3. Vérifiez que l'URL dans les variables d'environnement est correcte
-
-Si le serveur d'actions ne fonctionne pas :
-1. Vérifiez les logs : `docker-compose logs rasa-actions`
-2. Vérifiez que les fichiers actions sont correctement copiés dans le conteneur
+Cela affichera les mappings de ports actuellement utilisés par vos conteneurs.
