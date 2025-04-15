@@ -77,7 +77,7 @@ services:
       - DISCORD_TOKEN=${DISCORD_TOKEN}
     restart: always
     command: >
-      sh -c "py thon -m discord_bot.main --rasa-url http://rasa:5005/webhooks/rest/webhook --discord-token ${DISCORD_TOKEN} --debug"
+      sh -c "python3 bot/main.py"
 
 volumes:
   postgres_data:
