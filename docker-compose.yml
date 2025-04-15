@@ -9,7 +9,7 @@ services:
       POSTGRES_PASSWORD: rasa
       POSTGRES_DB: reservation
     ports:
-      - "${DB_PORT:5432}:5432"
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-db:/docker-entrypoint-initdb.d
@@ -26,7 +26,7 @@ services:
       context: .
       dockerfile: Dockerfile.rasa
     ports:
-      - "${RASA_PORT:5005}:5005"
+      - "${RASA_PORT:-5005}:5005"
     depends_on:
       rasa-actions:
         condition: service_started
@@ -40,7 +40,7 @@ services:
       - DB_USER=rasa
       - DB_PASSWORD=rasa
       - DB_NAME=reservation
-      - DB_PORT=${DB_PORT:5432}
+      - DB_PORT=5432
     restart: always
     command: >
       sh -c "rasa train && rasa run --enable-api --cors \"*\" --debug"
@@ -51,7 +51,7 @@ services:
       context: .
       dockerfile: Dockerfile.actions
     ports:
-      - "${ACTIONS_PORT:5055}:5055"
+      - "${ACTIONS_PORT:-5055}:5055"
     depends_on:
       postgres:
         condition: service_healthy
@@ -61,7 +61,7 @@ services:
       - DB_USER=rasa
       - DB_PASSWORD=rasa
       - DB_NAME=reservation
-      - DB_PORT=${DB_PORT:5432}
+      - DB_PORT=5432
     restart: always
 
   # Bot Discord
@@ -73,7 +73,7 @@ services:
       - rasa
     environment:
       - PYTHONUNBUFFERED=1
-      - RASA_URL=http://rasa:${RASA_PORT:5005}/webhooks/rest/webhook
+      - RASA_URL=http://rasa:5005/webhooks/rest/webhook
       - DISCORD_TOKEN=${DISCORD_TOKEN}
     restart: always
 
